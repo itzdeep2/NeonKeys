@@ -1,19 +1,47 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+let width = (canvas.width = window.innerWidth);
+let height = (canvas.height = window.innerHeight);
 
-// basic loop test
-function draw() {
-  ctx.fillStyle = "#0d0f18";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+window.addEventListener("resize", () => {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+});
 
-  ctx.fillStyle = "#ff007f";
-  ctx.font = "24px monospace";
-  ctx.fillText("NeonKeys - Press Any Key", 50, 100);
+const LANES = [
+  { key: "D", x: 0 },
+  { key: "F", x: 0 },
+  { key: "J", x: 0 },
+  { key: "K", x: 0 },
+];
 
-  requestAnimationFrame(draw);
+function updateLanePositions() {
+  const laneWidth = 100;
+  const startX = width / 2 - (LANES.length * laneWidth) / 2;
+  LANES.forEach((lane, i) => {
+    lane.x = startX + i * laneWidth;
+    lane.width = laneWidth;
+  });
 }
 
-draw();
+updateLanePositions();
+
+function render() {
+  ctx.fillStyle = "#0b0c16";
+  ctx.fillRect(0, 0, width, height);
+
+  // draw lanes
+  LANES.forEach((l) => {
+    ctx.strokeStyle = "#1f2438";
+    ctx.strokeRect(l.x, 0, l.width, height);
+
+    ctx.fillStyle = "#6b7280";
+    ctx.font = "20px monospace";
+    ctx.fillText(l.key, l.x + 40, height - 50);
+  });
+
+  requestAnimationFrame(render);
+}
+
+render();
