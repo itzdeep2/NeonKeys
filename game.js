@@ -159,37 +159,70 @@ render();
 let particles = [];
 
 function spawnParticles(x, y, color) {
-    for (let i = 0; i < 16; i++) {
-          const angle = Math.random() * Math.PI * 2;
-              const speed = Math.random() * 4 + 2;
-                  particles.push({
-                          x: x,
-                                y: y,
-                                      vx: Math.cos(angle) * speed,
-                                            vy: Math.sin(angle) * speed,
-                                                  life: 1.0,
-                                                        color: color,
-                  });
-                }
-              }
+  for (let i = 0; i < 16; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 4 + 2;
+    particles.push({
+      x: x,
+      y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1.0,
+      color: color,
+    });
+  }
+}
 
-              function updateParticles() {
-                  for (let i = particles.length - 1; i >= 0; i--) {
-                        const p = particles[i];
-                            p.x += p.vx;
-                                p.y += p.vy;
-                                    p.life -= 0.04;
-                                        if (p.life <= 0) {
-                                                particles.splice(i, 1);
-                                        }
-                                      }
-                                    }
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= 0.04;
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+}
 
-                                    function renderParticles() {
-                                        particles.forEach((p) => {
-                                              ctx.fillStyle = p.color;
-                                                  ctx.globalAlpha = Math.max(0, p.life);
-                                                      ctx.fillRect(p.x, p.y, 4, 4);
-                                        });
-                                          ctx.globalAlpha = 1.0;
-                                      }
+function renderParticles() {
+  particles.forEach((p) => {
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillRect(p.x, p.y, 4, 4);
+  });
+  ctx.globalAlpha = 1.0;
+}
+
+let floatingTexts = [];
+
+function addJudgement(text, color) {
+  floatingTexts.push({
+    text: text,
+    color: color,
+    y: height - 150,
+    alpha: 1.0,
+  });
+}
+
+// In hit detection:
+if (closestIdx !== -1) {
+  const dist = minDist;
+  notes.splice(closestIdx, 1);
+  combo++;
+
+  if (dist < 18) {
+    score += 250;
+    addJudgement("PERFECT", "#00ffcc");
+  } else {
+    score += 100;
+    addJudgement("GOOD", "#ffe600");
+  }
+
+  playHit(laneIdx);
+  spawnParticles(lane.x + lane.width / 2, hitZoneY, lane.color);
+} else {
+  combo = 0;
+  addJudgement("MISS", "#ff3366");
+  playMiss();
+}
