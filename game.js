@@ -4,18 +4,11 @@ const ctx = canvas.getContext("2d");
 let width = (canvas.width = window.innerWidth);
 let height = (canvas.height = window.innerHeight);
 
-// --- NEW STARFIELD LOGIC ---
 let stars = [];
 function initStars() {
   stars = [];
   for (let i = 0; i < 150; i++) {
-    stars.push({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      speed: Math.random() * 2 + 0.5,
-      radius: Math.random() * 1.5,
-      alpha: Math.random()
-    });
+    stars.push({ x: Math.random() * width, y: Math.random() * height, speed: Math.random() * 2 + 0.5, radius: Math.random() * 1.5, alpha: Math.random() });
   }
 }
 initStars();
@@ -24,7 +17,7 @@ window.addEventListener("resize", () => {
   width = canvas.width = window.innerWidth;
   height = canvas.height = window.innerHeight;
   updateLanePositions();
-  initStars(); // re-init stars on resize
+  initStars();
 });
 
 const STATES = { MENU: 0, PLAYING: 1, GAMEOVER: 2 };
@@ -40,10 +33,7 @@ const LANES = [
 function updateLanePositions() {
   const laneWidth = 92;
   const startX = width / 2 - (LANES.length * laneWidth) / 2;
-  LANES.forEach((lane, i) => {
-    lane.x = startX + i * laneWidth;
-    lane.width = laneWidth;
-  });
+  LANES.forEach((lane, i) => { lane.x = startX + i * laneWidth; lane.width = laneWidth; });
 }
 updateLanePositions();
 
@@ -58,18 +48,17 @@ let health = 100;
 let bpm = 130;
 let beatInterval = (60 / bpm) * 1000;
 let lastBeat = 0;
-const SPEED = 6.5;
+
+// NEW VARIABLES
+let shakeMagnitude = 0;
+let currentLevel = 1;
+let currentSpeed = 6.5;
 const HIT_TOLERANCE = 55;
 
 function resetGame() {
-  notes = [];
-  particles = [];
-  floatingTexts = [];
-  score = 0;
-  combo = 0;
-  maxCombo = 0;
-  health = 100;
-  bpm = 130;
+  notes = []; particles = []; floatingTexts = [];
+  score = 0; combo = 0; maxCombo = 0; health = 100; bpm = 130;
+  currentLevel = 1; currentSpeed = 6.5; shakeMagnitude = 0;
   beatInterval = (60 / bpm) * 1000;
   gameState = STATES.PLAYING;
 }
@@ -83,7 +72,7 @@ function checkHighScore() {
 
 function spawnNote() {
   const laneIdx = Math.floor(Math.random() * LANES.length);
-  notes.push({ lane: laneIdx, y: -20, speed: SPEED });
+  notes.push({ lane: laneIdx, y: -20, speed: currentSpeed });
 }
 
 function spawnParticles(x, y, color) {
@@ -92,6 +81,10 @@ function spawnParticles(x, y, color) {
     const speed = Math.random() * 5 + 2;
     particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 1.0, color });
   }
+}
+
+function triggerShake(intensity) {
+  shakeMagnitude = intensity;
 }
 
 function addJudgement(text, color) {
@@ -119,10 +112,7 @@ window.addEventListener("keydown", (e) => {
   for (let i = 0; i < notes.length; i++) {
     if (notes[i].lane === laneIdx) {
       const dist = Math.abs(notes[i].y - hitZoneY);
-      if (dist < HIT_TOLERANCE && dist < minDist) {
-        minDist = dist;
-        closestIdx = i;
-      }
+      if (dist < HIT_TOLERANCE && dist < minDist) { minDist = dist; closestIdx = i; }
     }
   }
 
@@ -142,11 +132,11 @@ window.addEventListener("keydown", (e) => {
     if (typeof playHit === "function") playHit(laneIdx);
     spawnParticles(lane.x + lane.width / 2, hitZoneY, lane.color);
   } else {
-    combo = 0;
-    health -= 8;
+    combo = 0; health -= 8;
     addJudgement("MISS", "#ff0055");
+    triggerShake(12); // Shake on miss!
     if (typeof playMiss === "function") playMiss();
-    if (health <= 0) { checkHighScore(); gameState = STATES.GAMEOVER; }
+    if (health <= 0) { checkHighScore(); gameState = STATES.GAMEOVER; triggerShake(25); }
   }
 });
 
@@ -157,22 +147,22 @@ window.addEventListener("keyup", (e) => {
 });
 
 function update(now) {
-  // Update Stars constantly regardless of game state
   stars.forEach(s => {
     s.y += (gameState === STATES.PLAYING ? s.speed * (bpm/80) : s.speed);
-    if (s.y > height) {
-      s.y = -5;
-      s.x = Math.random() * width;
-    }
+    if (s.y > height) { s.y = -5; s.x = Math.random() * width; }
   });
 
   if (gameState !== STATES.PLAYING) return;
 
+  // Level Progression Logic
+  currentLevel = 1 + Math.floor(score / 2500);
+  currentSpeed = 6.5 + (currentLevel * 0.4);
+
   if (now - lastBeat >= beatInterval) {
     lastBeat = now;
     spawnNote();
-    if (bpm < 185) {
-      bpm += 0.08;
+    if (bpm < 200) {
+      bpm += 0.1;
       beatInterval = (60 / bpm) * 1000;
     }
   }
@@ -182,23 +172,21 @@ function update(now) {
     notes[i].y += notes[i].speed;
     if (notes[i].y > hitZoneY + HIT_TOLERANCE) {
       notes.splice(i, 1);
-      combo = 0;
-      health -= 6;
+      combo = 0; health -= 6;
       addJudgement("MISS", "#ff0055");
+      triggerShake(10);
       if (typeof playMiss === "function") playMiss();
-      if (health <= 0) { checkHighScore(); gameState = STATES.GAMEOVER; }
+      if (health <= 0) { checkHighScore(); gameState = STATES.GAMEOVER; triggerShake(25); }
     }
   }
 
   for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.x += p.vx; p.y += p.vy; p.life -= 0.035;
+    const p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= 0.035;
     if (p.life <= 0) particles.splice(i, 1);
   }
 
   for (let i = floatingTexts.length - 1; i >= 0; i--) {
-    const ft = floatingTexts[i];
-    ft.y -= 0.9; ft.alpha -= 0.025;
+    const ft = floatingTexts[i]; ft.y -= 0.9; ft.alpha -= 0.025;
     if (ft.alpha <= 0) floatingTexts.splice(i, 1);
   }
 }
@@ -206,53 +194,45 @@ function update(now) {
 function render(now) {
   update(now);
 
+  ctx.save();
+  
+  // Apply Screen Shake
+  if (shakeMagnitude > 0.5) {
+    const dx = (Math.random() - 0.5) * shakeMagnitude;
+    const dy = (Math.random() - 0.5) * shakeMagnitude;
+    ctx.translate(dx, dy);
+    shakeMagnitude *= 0.85; // dampening
+  } else {
+    shakeMagnitude = 0;
+  }
+
   ctx.fillStyle = "#08090f";
   ctx.fillRect(0, 0, width, height);
 
-  // Draw Stars
   stars.forEach(s => {
     ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2); ctx.fill();
   });
 
   if (gameState === STATES.MENU) {
     ctx.textAlign = "center";
-    ctx.fillStyle = "#00f0ff";
-    ctx.font = "bold 56px monospace";
-    ctx.fillText("NEONKEYS", width / 2, height / 2 - 60);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "20px monospace";
-    ctx.fillText("A Tagless Rhythm Typing Game", width / 2, height / 2 - 10);
-    ctx.fillStyle = "#ffe600";
-    ctx.font = "18px monospace";
-    ctx.fillText(`HIGH SCORE: ${highScore}`, width / 2, height / 2 + 25);
-    ctx.fillStyle = "#ff007f";
-    ctx.font = "bold 22px monospace";
-    ctx.fillText("PRESS [SPACE] TO START", width / 2, height / 2 + 70);
-    ctx.fillStyle = "#636e85";
-    ctx.font = "16px monospace";
-    ctx.fillText("Controls: [D] [F] [J] [K]", width / 2, height / 2 + 110);
+    ctx.fillStyle = "#00f0ff"; ctx.font = "bold 56px monospace"; ctx.fillText("NEONKEYS", width / 2, height / 2 - 60);
+    ctx.fillStyle = "#ffffff"; ctx.font = "20px monospace"; ctx.fillText("A Tagless Rhythm Typing Game", width / 2, height / 2 - 10);
+    ctx.fillStyle = "#ffe600"; ctx.font = "18px monospace"; ctx.fillText(`HIGH SCORE: ${highScore}`, width / 2, height / 2 + 25);
+    ctx.fillStyle = "#ff007f"; ctx.font = "bold 22px monospace"; ctx.fillText("PRESS [SPACE] TO START", width / 2, height / 2 + 70);
+    ctx.fillStyle = "#636e85"; ctx.font = "16px monospace"; ctx.fillText("Controls: [D] [F] [J] [K]", width / 2, height / 2 + 110);
+    ctx.restore();
     requestAnimationFrame(render);
     return;
   }
 
   if (gameState === STATES.GAMEOVER) {
     ctx.textAlign = "center";
-    ctx.fillStyle = "#ff0055";
-    ctx.font = "bold 54px monospace";
-    ctx.fillText("GAME OVER", width / 2, height / 2 - 60);
-    ctx.fillStyle = "#fff";
-    ctx.font = "22px monospace";
-    ctx.fillText(`Final Score: ${score}`, width / 2, height / 2 - 10);
-    ctx.fillText(`Max Combo: ${maxCombo}x`, width / 2, height / 2 + 25);
-    ctx.fillStyle = "#ffe600";
-    ctx.font = "18px monospace";
-    ctx.fillText(`High Score: ${highScore}`, width / 2, height / 2 + 55);
-    ctx.fillStyle = "#00f0ff";
-    ctx.font = "bold 20px monospace";
-    ctx.fillText("PRESS [SPACE] TO RETRY", width / 2, height / 2 + 110);
+    ctx.fillStyle = "#ff0055"; ctx.font = "bold 54px monospace"; ctx.fillText("GAME OVER", width / 2, height / 2 - 60);
+    ctx.fillStyle = "#fff"; ctx.font = "22px monospace"; ctx.fillText(`Final Score: ${score}`, width / 2, height / 2 - 10); ctx.fillText(`Max Combo: ${maxCombo}x`, width / 2, height / 2 + 25);
+    ctx.fillStyle = "#ffe600"; ctx.font = "18px monospace"; ctx.fillText(`High Score: ${highScore}`, width / 2, height / 2 + 55);
+    ctx.fillStyle = "#00f0ff"; ctx.font = "bold 20px monospace"; ctx.fillText("PRESS [SPACE] TO RETRY", width / 2, height / 2 + 110);
+    ctx.restore();
     requestAnimationFrame(render);
     return;
   }
@@ -260,59 +240,38 @@ function render(now) {
   const hitZoneY = height - 110;
 
   LANES.forEach((l) => {
-    if (l.pressed) {
-      ctx.fillStyle = `${l.color}22`;
-      ctx.fillRect(l.x, 0, l.width, height);
-    }
-    ctx.strokeStyle = l.pressed ? l.color : "#171a29";
-    ctx.lineWidth = l.pressed ? 2 : 1;
-    ctx.strokeRect(l.x, 0, l.width, height);
-    ctx.fillStyle = l.pressed ? l.color : "#5c6982";
-    ctx.textAlign = "center";
-    ctx.font = "bold 22px monospace";
-    ctx.fillText(l.key, l.x + l.width / 2, height - 40);
+    if (l.pressed) { ctx.fillStyle = `${l.color}22`; ctx.fillRect(l.x, 0, l.width, height); }
+    ctx.strokeStyle = l.pressed ? l.color : "#171a29"; ctx.lineWidth = l.pressed ? 2 : 1; ctx.strokeRect(l.x, 0, l.width, height);
+    ctx.fillStyle = l.pressed ? l.color : "#5c6982"; ctx.textAlign = "center"; ctx.font = "bold 22px monospace"; ctx.fillText(l.key, l.x + l.width / 2, height - 40);
   });
 
-  ctx.fillStyle = "#2c354f";
-  ctx.fillRect(LANES[0].x, hitZoneY, LANES.length * LANES[0].width, 6);
+  ctx.fillStyle = "#2c354f"; ctx.fillRect(LANES[0].x, hitZoneY, LANES.length * LANES[0].width, 6);
 
   notes.forEach((n) => {
     const lane = LANES[n.lane];
-    ctx.fillStyle = lane.color;
-    ctx.shadowColor = lane.color;
-    ctx.shadowBlur = 12;
+    ctx.fillStyle = lane.color; ctx.shadowColor = lane.color; ctx.shadowBlur = 12;
     ctx.fillRect(lane.x + 8, n.y, lane.width - 16, 20);
   });
   ctx.shadowBlur = 0;
 
-  particles.forEach((p) => {
-    ctx.fillStyle = p.color;
-    ctx.globalAlpha = Math.max(0, p.life);
-    ctx.fillRect(p.x, p.y, 4, 4);
-  });
-  ctx.globalAlpha = 1.0;
+  particles.forEach((p) => { ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life); ctx.fillRect(p.x, p.y, 4, 4); }); ctx.globalAlpha = 1.0;
 
   floatingTexts.forEach((ft) => {
-    ctx.fillStyle = ft.color;
-    ctx.globalAlpha = Math.max(0, ft.alpha);
-    ctx.font = "bold 24px monospace";
-    ctx.textAlign = "center";
-    ctx.fillText(ft.text, width / 2, ft.y);
-  });
-  ctx.globalAlpha = 1.0;
+    ctx.fillStyle = ft.color; ctx.globalAlpha = Math.max(0, ft.alpha); ctx.font = "bold 24px monospace";
+    ctx.textAlign = "center"; ctx.fillText(ft.text, width / 2, ft.y);
+  }); ctx.globalAlpha = 1.0;
 
   ctx.textAlign = "left";
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "20px monospace";
-  ctx.fillText(`SCORE: ${score}`, 40, 50);
-  ctx.fillStyle = combo > 5 ? "#ffe600" : "#5c6982";
-  ctx.fillText(`COMBO: ${combo}x`, 40, 80);
+  ctx.fillStyle = "#ffffff"; ctx.font = "20px monospace"; ctx.fillText(`SCORE: ${score}`, 40, 50);
+  ctx.fillStyle = combo > 5 ? "#ffe600" : "#5c6982"; ctx.fillText(`COMBO: ${combo}x`, 40, 80);
+  
+  // Render Level
+  ctx.fillStyle = "#00f0ff"; ctx.fillText(`LEVEL: ${currentLevel}`, 40, 140);
 
-  ctx.fillStyle = "#1e2233";
-  ctx.fillRect(40, 105, 160, 12);
-  ctx.fillStyle = health > 30 ? "#00ff66" : "#ff0055";
-  ctx.fillRect(40, 105, (160 * health) / 100, 12);
+  ctx.fillStyle = "#1e2233"; ctx.fillRect(40, 105, 160, 12);
+  ctx.fillStyle = health > 30 ? "#00ff66" : "#ff0055"; ctx.fillRect(40, 105, (160 * health) / 100, 12);
 
+  ctx.restore();
   requestAnimationFrame(render);
 }
 
