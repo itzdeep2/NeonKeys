@@ -34,6 +34,7 @@ let notes = [];
 let particles = [];
 let floatingTexts = [];
 let score = 0;
+let highScore = localStorage.getItem("neonKeysHighScore") || 0; // Load saved score
 let combo = 0;
 let maxCombo = 0;
 let health = 100;
@@ -54,6 +55,13 @@ function resetGame() {
   bpm = 130;
   beatInterval = (60 / bpm) * 1000;
   gameState = STATES.PLAYING;
+}
+
+function checkHighScore() {
+  if (score > highScore) {
+    highScore = score;
+    localStorage.setItem("neonKeysHighScore", highScore);
+  }
 }
 
 function spawnNote() {
@@ -81,11 +89,10 @@ function addJudgement(text, color) {
 }
 
 window.addEventListener("keydown", (e) => {
-  initAudio();
+  if (typeof initAudio === "function") initAudio();
+  
   if (gameState === STATES.MENU || gameState === STATES.GAMEOVER) {
-    if (e.code === "Space") {
-      resetGame();
-    }
+    if (e.code === "Space") resetGame();
     return;
   }
 
@@ -125,14 +132,17 @@ window.addEventListener("keydown", (e) => {
       addJudgement("GOOD", "#ffe600");
     }
 
-    playHit(laneIdx);
+    if (typeof playHit === "function") playHit(laneIdx);
     spawnParticles(lane.x + lane.width / 2, hitZoneY, lane.color);
   } else {
     combo = 0;
     health -= 8;
     addJudgement("MISS", "#ff0055");
-    playMiss();
-    if (health <= 0) gameState = STATES.GAMEOVER;
+    if (typeof playMiss === "function") playMiss();
+    if (health <= 0) {
+      checkHighScore();
+      gameState = STATES.GAMEOVER;
+    }
   }
 });
 
@@ -162,8 +172,11 @@ function update(now) {
       combo = 0;
       health -= 6;
       addJudgement("MISS", "#ff0055");
-      playMiss();
-      if (health <= 0) gameState = STATES.GAMEOVER;
+      if (typeof playMiss === "function") playMiss();
+      if (health <= 0) {
+        checkHighScore();
+        gameState = STATES.GAMEOVER;
+      }
     }
   }
 
@@ -199,13 +212,17 @@ function render(now) {
     ctx.font = "20px monospace";
     ctx.fillText("A Tagless Rhythm Typing Game", width / 2, height / 2 - 10);
 
+    ctx.fillStyle = "#ffe600";
+    ctx.font = "18px monospace";
+    ctx.fillText(`HIGH SCORE: ${highScore}`, width / 2, height / 2 + 25);
+
     ctx.fillStyle = "#ff007f";
     ctx.font = "bold 22px monospace";
-    ctx.fillText("PRESS [SPACE] TO START", width / 2, height / 2 + 50);
+    ctx.fillText("PRESS [SPACE] TO START", width / 2, height / 2 + 70);
 
     ctx.fillStyle = "#636e85";
     ctx.font = "16px monospace";
-    ctx.fillText("Controls: [D] [F] [J] [K]", width / 2, height / 2 + 90);
+    ctx.fillText("Controls: [D] [F] [J] [K]", width / 2, height / 2 + 110);
     requestAnimationFrame(render);
     return;
   }
@@ -214,44 +231,43 @@ function render(now) {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ff0055";
     ctx.font = "bold 54px monospace";
-    ctx.fillText("GAME OVER", width / 2, height / 2 - 50);
+    ctx.fillText("GAME OVER", width / 2, height / 2 - 60);
 
     ctx.fillStyle = "#fff";
     ctx.font = "22px monospace";
-    ctx.fillText(`Final Score: ${score}`, width / 2, height / 2);
-    ctx.fillText(`Max Combo: ${maxCombo}x`, width / 2, height / 2 + 35);
+    ctx.fillText(`Final Score: ${score}`, width / 2, height / 2 - 10);
+    ctx.fillText(`Max Combo: ${maxCombo}x`, width / 2, height / 2 + 25);
+    
+    ctx.fillStyle = "#ffe600";
+    ctx.font = "18px monospace";
+    ctx.fillText(`High Score: ${highScore}`, width / 2, height / 2 + 55);
 
     ctx.fillStyle = "#00f0ff";
     ctx.font = "bold 20px monospace";
-    ctx.fillText("PRESS [SPACE] TO RETRY", width / 2, height / 2 + 90);
+    ctx.fillText("PRESS [SPACE] TO RETRY", width / 2, height / 2 + 110);
     requestAnimationFrame(render);
     return;
   }
 
   const hitZoneY = height - 110;
 
-  // Lanes
   LANES.forEach((l) => {
     if (l.pressed) {
       ctx.fillStyle = `${l.color}22`;
       ctx.fillRect(l.x, 0, l.width, height);
     }
-
     ctx.strokeStyle = l.pressed ? l.color : "#171a29";
     ctx.lineWidth = l.pressed ? 2 : 1;
     ctx.strokeRect(l.x, 0, l.width, height);
-
     ctx.fillStyle = l.pressed ? l.color : "#5c6982";
     ctx.textAlign = "center";
     ctx.font = "bold 22px monospace";
     ctx.fillText(l.key, l.x + l.width / 2, height - 40);
   });
 
-  // Target bar
   ctx.fillStyle = "#2c354f";
   ctx.fillRect(LANES[0].x, hitZoneY, LANES.length * LANES[0].width, 6);
 
-  // Notes
   notes.forEach((n) => {
     const lane = LANES[n.lane];
     ctx.fillStyle = lane.color;
@@ -261,7 +277,6 @@ function render(now) {
   });
   ctx.shadowBlur = 0;
 
-  // Particles
   particles.forEach((p) => {
     ctx.fillStyle = p.color;
     ctx.globalAlpha = Math.max(0, p.life);
@@ -269,7 +284,6 @@ function render(now) {
   });
   ctx.globalAlpha = 1.0;
 
-  // Judgements
   floatingTexts.forEach((ft) => {
     ctx.fillStyle = ft.color;
     ctx.globalAlpha = Math.max(0, ft.alpha);
@@ -279,7 +293,6 @@ function render(now) {
   });
   ctx.globalAlpha = 1.0;
 
-  // HUD
   ctx.textAlign = "left";
   ctx.fillStyle = "#ffffff";
   ctx.font = "20px monospace";
@@ -288,7 +301,6 @@ function render(now) {
   ctx.fillStyle = combo > 5 ? "#ffe600" : "#5c6982";
   ctx.fillText(`COMBO: ${combo}x`, 40, 80);
 
-  // Health Bar
   ctx.fillStyle = "#1e2233";
   ctx.fillRect(40, 105, 160, 12);
   ctx.fillStyle = health > 30 ? "#00ff66" : "#ff0055";
