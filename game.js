@@ -40,7 +40,12 @@ function spawnNote() {
 }
 
 window.addEventListener("keydown", (e) => {
-  if (e.repeat) return; // prevent key-repeat bug
+  // unlock Web Audio context on the first user interaction
+  if (typeof initAudio === "function") {
+    initAudio();
+  }
+
+  if (e.repeat) return;
   const key = e.key.toUpperCase();
   const lane = LANES.find((l) => l.key === key);
   if (!lane) return;
@@ -49,7 +54,6 @@ window.addEventListener("keydown", (e) => {
   const laneIdx = LANES.indexOf(lane);
   const hitZoneY = height - 100;
 
-  // find closest note in lane
   let closestIdx = -1;
   let minDist = Infinity;
 
@@ -67,8 +71,14 @@ window.addEventListener("keydown", (e) => {
     notes.splice(closestIdx, 1);
     combo++;
     score += 100 * Math.min(combo, 10);
+    if (typeof playHit === "function") {
+      playHit(laneIdx);
+    }
   } else {
     combo = 0;
+    if (typeof playMiss === "function") {
+      playMiss();
+    }
   }
 });
 
@@ -91,6 +101,9 @@ function update() {
     if (notes[i].y > hitZoneY + HIT_TOLERANCE) {
       notes.splice(i, 1);
       combo = 0;
+      if (typeof playMiss === "function") {
+        playMiss();
+      }
     }
   }
 }
@@ -103,10 +116,10 @@ function render() {
 
   const hitZoneY = height - 100;
 
+  // Draw lanes and pressed glows
   LANES.forEach((l) => {
-    // pressed highlight
     if (l.pressed) {
-      ctx.fillStyle = `${l.color}18`;
+      ctx.fillStyle = `${l.color}22`;
       ctx.fillRect(l.x, 0, l.width, height);
     }
 
@@ -119,20 +132,22 @@ function render() {
     ctx.fillText(l.key, l.x + 36, height - 40);
   });
 
-  // target bar
+  // Target baseline
   ctx.fillStyle = "#333d59";
   ctx.fillRect(LANES[0].x, hitZoneY, LANES.length * 90, 6);
 
-  // notes
+  // Draw falling notes
   notes.forEach((n) => {
     const lane = LANES[n.lane];
     ctx.fillStyle = lane.color;
     ctx.fillRect(lane.x + 8, n.y, lane.width - 16, 18);
   });
 
-  ctx.fillStyle = "#fff";
+  // Stats
+  ctx.fillStyle = "#ffffff";
   ctx.font = "18px monospace";
   ctx.fillText(`Score: ${score}`, 40, 50);
+
   ctx.fillStyle = combo > 4 ? "#ffe600" : "#6c7a91";
   ctx.fillText(`Combo: ${combo}x`, 40, 80);
 
