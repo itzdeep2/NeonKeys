@@ -4,10 +4,27 @@ const ctx = canvas.getContext("2d");
 let width = (canvas.width = window.innerWidth);
 let height = (canvas.height = window.innerHeight);
 
+// --- NEW STARFIELD LOGIC ---
+let stars = [];
+function initStars() {
+  stars = [];
+  for (let i = 0; i < 150; i++) {
+    stars.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      speed: Math.random() * 2 + 0.5,
+      radius: Math.random() * 1.5,
+      alpha: Math.random()
+    });
+  }
+}
+initStars();
+
 window.addEventListener("resize", () => {
   width = canvas.width = window.innerWidth;
   height = canvas.height = window.innerHeight;
   updateLanePositions();
+  initStars(); // re-init stars on resize
 });
 
 const STATES = { MENU: 0, PLAYING: 1, GAMEOVER: 2 };
@@ -34,7 +51,7 @@ let notes = [];
 let particles = [];
 let floatingTexts = [];
 let score = 0;
-let highScore = localStorage.getItem("neonKeysHighScore") || 0; // Load saved score
+let highScore = localStorage.getItem("neonKeysHighScore") || 0;
 let combo = 0;
 let maxCombo = 0;
 let health = 100;
@@ -73,14 +90,7 @@ function spawnParticles(x, y, color) {
   for (let i = 0; i < 18; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = Math.random() * 5 + 2;
-    particles.push({
-      x,
-      y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      life: 1.0,
-      color,
-    });
+    particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 1.0, color });
   }
 }
 
@@ -90,12 +100,10 @@ function addJudgement(text, color) {
 
 window.addEventListener("keydown", (e) => {
   if (typeof initAudio === "function") initAudio();
-  
   if (gameState === STATES.MENU || gameState === STATES.GAMEOVER) {
     if (e.code === "Space") resetGame();
     return;
   }
-
   if (e.repeat) return;
   const key = e.key.toUpperCase();
   const lane = LANES.find((l) => l.key === key);
@@ -131,7 +139,6 @@ window.addEventListener("keydown", (e) => {
       score += 150;
       addJudgement("GOOD", "#ffe600");
     }
-
     if (typeof playHit === "function") playHit(laneIdx);
     spawnParticles(lane.x + lane.width / 2, hitZoneY, lane.color);
   } else {
@@ -139,10 +146,7 @@ window.addEventListener("keydown", (e) => {
     health -= 8;
     addJudgement("MISS", "#ff0055");
     if (typeof playMiss === "function") playMiss();
-    if (health <= 0) {
-      checkHighScore();
-      gameState = STATES.GAMEOVER;
-    }
+    if (health <= 0) { checkHighScore(); gameState = STATES.GAMEOVER; }
   }
 });
 
@@ -153,6 +157,15 @@ window.addEventListener("keyup", (e) => {
 });
 
 function update(now) {
+  // Update Stars constantly regardless of game state
+  stars.forEach(s => {
+    s.y += (gameState === STATES.PLAYING ? s.speed * (bpm/80) : s.speed);
+    if (s.y > height) {
+      s.y = -5;
+      s.x = Math.random() * width;
+    }
+  });
+
   if (gameState !== STATES.PLAYING) return;
 
   if (now - lastBeat >= beatInterval) {
@@ -173,25 +186,19 @@ function update(now) {
       health -= 6;
       addJudgement("MISS", "#ff0055");
       if (typeof playMiss === "function") playMiss();
-      if (health <= 0) {
-        checkHighScore();
-        gameState = STATES.GAMEOVER;
-      }
+      if (health <= 0) { checkHighScore(); gameState = STATES.GAMEOVER; }
     }
   }
 
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.life -= 0.035;
+    p.x += p.vx; p.y += p.vy; p.life -= 0.035;
     if (p.life <= 0) particles.splice(i, 1);
   }
 
   for (let i = floatingTexts.length - 1; i >= 0; i--) {
     const ft = floatingTexts[i];
-    ft.y -= 0.9;
-    ft.alpha -= 0.025;
+    ft.y -= 0.9; ft.alpha -= 0.025;
     if (ft.alpha <= 0) floatingTexts.splice(i, 1);
   }
 }
@@ -202,24 +209,28 @@ function render(now) {
   ctx.fillStyle = "#08090f";
   ctx.fillRect(0, 0, width, height);
 
+  // Draw Stars
+  stars.forEach(s => {
+    ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
   if (gameState === STATES.MENU) {
     ctx.textAlign = "center";
     ctx.fillStyle = "#00f0ff";
     ctx.font = "bold 56px monospace";
     ctx.fillText("NEONKEYS", width / 2, height / 2 - 60);
-
     ctx.fillStyle = "#ffffff";
     ctx.font = "20px monospace";
     ctx.fillText("A Tagless Rhythm Typing Game", width / 2, height / 2 - 10);
-
     ctx.fillStyle = "#ffe600";
     ctx.font = "18px monospace";
     ctx.fillText(`HIGH SCORE: ${highScore}`, width / 2, height / 2 + 25);
-
     ctx.fillStyle = "#ff007f";
     ctx.font = "bold 22px monospace";
     ctx.fillText("PRESS [SPACE] TO START", width / 2, height / 2 + 70);
-
     ctx.fillStyle = "#636e85";
     ctx.font = "16px monospace";
     ctx.fillText("Controls: [D] [F] [J] [K]", width / 2, height / 2 + 110);
@@ -232,16 +243,13 @@ function render(now) {
     ctx.fillStyle = "#ff0055";
     ctx.font = "bold 54px monospace";
     ctx.fillText("GAME OVER", width / 2, height / 2 - 60);
-
     ctx.fillStyle = "#fff";
     ctx.font = "22px monospace";
     ctx.fillText(`Final Score: ${score}`, width / 2, height / 2 - 10);
     ctx.fillText(`Max Combo: ${maxCombo}x`, width / 2, height / 2 + 25);
-    
     ctx.fillStyle = "#ffe600";
     ctx.font = "18px monospace";
     ctx.fillText(`High Score: ${highScore}`, width / 2, height / 2 + 55);
-
     ctx.fillStyle = "#00f0ff";
     ctx.font = "bold 20px monospace";
     ctx.fillText("PRESS [SPACE] TO RETRY", width / 2, height / 2 + 110);
@@ -297,7 +305,6 @@ function render(now) {
   ctx.fillStyle = "#ffffff";
   ctx.font = "20px monospace";
   ctx.fillText(`SCORE: ${score}`, 40, 50);
-
   ctx.fillStyle = combo > 5 ? "#ffe600" : "#5c6982";
   ctx.fillText(`COMBO: ${combo}x`, 40, 80);
 
