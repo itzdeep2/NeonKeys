@@ -226,3 +226,22 @@ if (closestIdx !== -1) {
   addJudgement("MISS", "#ff3366");
   playMiss();
 }
+let bpm = 128;
+let beatInterval = (60 / bpm) * 1000;
+let lastBeat = 0;
+
+function updateBpmClock(now) {
+  if (now - lastBeat >= beatInterval) {
+    lastBeat = now;
+    // chance to spawn single or double note
+    spawnNote();
+    if (Math.random() < 0.25 && combo > 15) {
+      setTimeout(spawnNote, beatInterval / 2);
+    }
+    // slight tempo ramp
+    if (bpm < 175) {
+      bpm += 0.05;
+      beatInterval = (60 / bpm) * 1000;
+    }
+  }
+}
