@@ -1,32 +1,69 @@
 # NeonKeys
 
-A fast-paced retro neon rhythm game played right in the browser.
+A small rhythm game made with JavaScript.
 
-## Description
+## What is this?
 
-I wanted to make a quick keyboard rhythm game inspired by arcade rhythm machines. In NeonKeys, notes drop down four colored lanes to the beat, and you have to tap the keys before they hit the bottom. I built the entire visual display using an HTML5 canvas and wrote the game loop in plain JavaScript without using any heavy game engines. For the sounds, instead of loading big mp3 files, I used the Web Audio API to generate 8-bit synth bleeps on the fly whenever you hit or miss a note. It also tracks your combo streak, health bar, and saves your high score in local storage.
+NeonKeys is a simple keyboard rhythm game I made for my hack club project.
 
-### Tech Stack
-- Vanilla JavaScript
-- HTML5 Canvas API
-- Web Audio API
-- Plain CSS
+Notes come down in 4 lanes and you have to press the right key when they reach the bottom.
 
-### Screenshots
+I made it without any game engine. The game is mostly JavaScript + Canvas.
+
+I also used Web Audio API for the small sounds instead of using audio files.
+
+## Features
+
+* 4 lanes
+* Keyboard controls
+* Score
+* Combo
+* Health bar
+* High score
+* Neon style
+* Sound effects
+
+## Made With
+
+* JavaScript
+* HTML
+* CSS
+* Canvas
+* Web Audio API
+
+## Screenshots
 
 ![Start Menu](screenshots/ss1.png)
 
-![Gameplay](screenshots/ss2.png)
+![Game](screenshots/ss2.png)
 
 ![Game Over](screenshots/ss3.png)
 
-## Getting Started
+## How to Run
 
-### Dependencies
-You don't need to install anything special. Any modern web browser like Chrome, Firefox, Edge, or Safari will run it fine.
+Clone the repo:
 
-### Installing
-Clone the repository to your computer:
 ```bash
-git clone [https://github.com/itzdeep2/NeonKeys.git](https://github.com/itzdeep2/NeonKeys.git)
+git clone https://github.com/itzdeep2/NeonKeys.git
 cd NeonKeys
+```
+
+Then just open `index.html` in your browser.
+
+No npm or anything needed.
+
+## Controls
+
+Use the keys shown in the game to hit the notes.
+
+Try to get the highest score you can :)
+
+## Why I Made It
+
+I wanted to make a small game using just JavaScript and see what I could do without using a game engine.
+
+That's pretty much it lol.
+
+---
+
+Made for Hack Club :)
